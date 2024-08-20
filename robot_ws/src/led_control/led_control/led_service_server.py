@@ -1,3 +1,5 @@
+# 이 노드는 라즈베리파이에서 실행되며, LED를 제어하기 위한 서비스 서버를 제공합니다. SetBool 서비스를 통해 LED를 켜거나 끌 수 있습니다.
+
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import SetBool
