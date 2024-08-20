@@ -43,21 +43,19 @@ public:
         goal_service_client_ = this->create_client<std_srvs::srv::Trigger>("execute_waypoint_goal");
 
         // 스레드에서 서비스 호출을 처리하기 위한 람다 함수
-        service_thread_ = std::thread([this]()
-                                      {
-            rclcpp::Rate loop_rate(10);
-            while (rclcpp::ok()) {
-                rclcpp::spin_some(this->get_node_base_interface());
-                loop_rate.sleep();
-            } });
+        // service_thread_ = std::thread([this]()
+        //                               {
+        //     rclcpp::Rate loop_rate(10);
+        //     while (rclcpp::ok()) {
+        //         rclcpp::spin_some(this->get_node_base_interface());
+        //         loop_rate.sleep();
+        //     } });
     }
 
     ~MainControlNode()
     {
         if (service_thread_.joinable())
-        {
             service_thread_.join();
-        }
     }
 
     // 수동으로 LED를 켜거나 끄는 함수

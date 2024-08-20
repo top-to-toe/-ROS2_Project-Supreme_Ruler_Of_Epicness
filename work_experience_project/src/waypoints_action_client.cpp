@@ -30,30 +30,11 @@ public:
 
         // LED 제어를 위한 서비스 클라이언트 생성
         led_client_ = this->create_client<std_srvs::srv::SetBool>("toggle_led");
-
-        // ROS 2 노드가 실행되는 동안 서비스 요청을 처리하기 위한 스레드 생성
-        service_thread_ = std::thread([this]()
-                                      {
-            rclcpp::Rate loop_rate(10); // 루프 주기를 10Hz로 설정
-            while (rclcpp::ok()) {
-                rclcpp::spin_some(this->get_node_base_interface()); // 서비스 요청 처리
-                loop_rate.sleep();
-            } });
-    }
-
-    // 소멸자: 서비스 스레드를 안전하게 종료합니다.
-    ~WaypointsServiceClient()
-    {
-        if (service_thread_.joinable())
-        {
-            service_thread_.join();
-        }
     }
 
     // 경유지로 이동하는 함수
     void move_to_waypoints()
     {
-        // ★★★★★ 제공된 경유지 좌표 및 원점을 추가했습니다.
         std::vector<geometry_msgs::msg::PoseStamped> waypoints = {
             create_pose(1.44, -0.158, 0.0), // 첫 번째 경유지
             create_pose(1.43, 0.353, 0.0),  // 두 번째 경유지
@@ -61,8 +42,11 @@ public:
             create_pose(0.0, 0.0, 0.0)      // 원점 (마지막 도착지)
         };
 
-        for (const auto &waypoint : waypoints)
+        for (size_t i = 0; i < waypoints.size(); ++i)
         {
+            const auto &waypoint = waypoints[i];
+            RCLCPP_INFO(this->get_logger(), "Navigating to waypoint %zu/%zu", i + 1, waypoints.size());
+
             // 각 경유지로 이동을 시도합니다.
             if (navigate_to_pose(waypoint))
             {
@@ -70,9 +54,12 @@ public:
             }
             else
             {
-                RCLCPP_ERROR(this->get_logger(), "Failed to reach waypoint at x: %f, y: %f", waypoint.pose.position.x, waypoint.pose.position.y);
-                return;
+                RCLCPP_ERROR(this->get_logger(), "Failed to reach waypoint at x: %f, y: %f. Aborting sequence.", waypoint.pose.position.x, waypoint.pose.position.y);
+                break;
             }
+
+            // 다음 경유지로 이동하기 전에 잠시 대기 시간을 줍니다.
+            rclcpp::sleep_for(1s); // 경유지 간의 간격을 줄 수 있습니다.
         }
 
         // 모든 경유지를 방문한 후 LED를 끄는 요청을 보냅니다.
@@ -117,10 +104,12 @@ private:
     // 특정 경유지로 이동하는 함수
     bool navigate_to_pose(const geometry_msgs::msg::PoseStamped &pose)
     {
+        RCLCPP_INFO(this->get_logger(), "Attempting to navigate to x: %f, y: %f", pose.pose.position.x, pose.pose.position.y);
+
         // 액션 서버가 준비되기를 기다림
         if (!navigate_action_client_->wait_for_action_server(10s))
         {
-            RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
+            RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting. Ensure Navigation2 is running.");
             return false;
         }
 
@@ -132,23 +121,23 @@ private:
         auto send_goal_options = rclcpp_action::Client<NavigateToPose>::SendGoalOptions();
 
         // 서버가 목표를 수락했는지 확인하는 콜백
-        send_goal_options.goal_response_callback = [](const GoalHandleNavigateToPose::SharedPtr &goal_handle)
+        send_goal_options.goal_response_callback = [this](const GoalHandleNavigateToPose::SharedPtr &goal_handle)
         {
             if (!goal_handle)
             {
-                RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Goal was rejected by server");
+                RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
             }
             else
             {
-                RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Goal accepted by server, waiting for result");
+                RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
             }
         };
 
         // 목표로 이동하는 동안 피드백을 받는 콜백
-        send_goal_options.feedback_callback = [](GoalHandleNavigateToPose::SharedPtr,
-                                                 const std::shared_ptr<const NavigateToPose::Feedback> feedback)
+        send_goal_options.feedback_callback = [this](GoalHandleNavigateToPose::SharedPtr,
+                                                     const std::shared_ptr<const NavigateToPose::Feedback> feedback)
         {
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Distance to goal: %f meters", feedback->distance_remaining);
+            RCLCPP_INFO(this->get_logger(), "Distance to goal: %f meters", feedback->distance_remaining);
         };
 
         // 결과 콜백 함수 설정
@@ -160,14 +149,14 @@ private:
                 RCLCPP_INFO(this->get_logger(), "Goal reached successfully");
                 break;
             case rclcpp_action::ResultCode::ABORTED:
-                RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+                RCLCPP_ERROR(this->get_logger(), "Goal was aborted. Retrying the waypoint or moving to the next one.");
                 break;
             case rclcpp_action::ResultCode::CANCELED:
-                RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+                RCLCPP_ERROR(this->get_logger(), "Goal was canceled. Skipping to the next waypoint.");
                 break;
             default:
                 RCLCPP_ERROR(this->get_logger(), "Unknown result code");
-                break;
+                return;
             }
         };
 
@@ -188,7 +177,8 @@ private:
             return false;
         }
 
-        return true; // 목표가 성공적으로 전송되고 실행되었음을 반환
+        // 목표가 성공적으로 전송되고 실행되었음을 반환
+        return true;
     }
 
     // 서비스 호출 결과를 처리하는 함수
@@ -213,7 +203,6 @@ private:
     // 액션 클라이언트와 서비스 클라이언트
     rclcpp_action::Client<NavigateToPose>::SharedPtr navigate_action_client_; // navigate_to_pose 액션 클라이언트
     rclcpp::Client<std_srvs::srv::SetBool>::SharedPtr led_client_;            // LED 제어를 위한 서비스 클라이언트
-    std::thread service_thread_;                                              // 서비스 요청을 처리하는 스레드
 };
 
 int main(int argc, char *argv[])
@@ -237,7 +226,7 @@ int main(int argc, char *argv[])
     move_to_waypoints 함수는 여러 경유지를 순차적으로 이동하도록 명령합니다.
     navigate_to_pose 함수는 nav2_msgs::action::NavigateToPose 액션을 사용하여 특정 위치로 로봇을 이동시킵니다.
     control_led 함수는 LED를 켜거나 끄는 서비스 요청을 처리합니다.
-    service_thread_는 비동기 작업을 처리하기 위해 별도의 스레드를 사용합니다.
+    서비스 호출 결과는 별도의 스레드에서 비동기적으로 처리됩니다.
 
     이 노드는 로봇이 설정된 경유지로 이동하도록 명령을 보내고, 이동이 시작될 때 LED를 켜고 이동이 완료되면 LED를 끄는 기능을 제공합니다.
     이 노드에서는 경유지 좌표를 설정하고, 로봇을 해당 좌표로 이동시키는 작업을 수행합니다.
