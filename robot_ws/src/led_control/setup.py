@@ -22,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'led_service_server = led_control.led_service_server:main',
+            'led_service_client = led_control.led_service_client:main',  # 클라이언트 스크립트 추가
         ],
     },
 )
