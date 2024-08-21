@@ -2,89 +2,62 @@ cmake_minimum_required(VERSION 3.8)
 project(work_experience_project)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)  # 컴파일 시 경고를 강화합니다.
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Find dependencies
+# find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(nav2_msgs REQUIRED)  # 네비게이션 관련 메시지 사용
+find_package(nav2_msgs REQUIRED)
 find_package(tf2 REQUIRED)
-find_package(rclcpp_action REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(std_srvs REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(example_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
-# Include directories for OpenCV
-include_directories(include ${OpenCV_INCLUDE_DIRS})
+# Custom service
+# find_package(rosidl_default_generators REQUIRED)
 
-# Add executables for each node
-add_executable(waypoints_navigation_node src/waypoints_navigation_node.cpp)
-ament_target_dependencies(waypoints_navigation_node 
-  rclcpp 
-  nav2_msgs 
-  rclcpp_action 
-  tf2 
-  geometry_msgs
-  tf2_geometry_msgs 
-  tf2_ros  
-  std_srvs
+# Generate the custom service files
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/WaypointService.srv"
 )
 
-add_executable(main_control_node src/main_control_node.cpp)
-ament_target_dependencies(main_control_node 
-  rclcpp 
-  geometry_msgs 
-  std_srvs  
-  std_msgs  
-  tf2
-  tf2_geometry_msgs
-  sensor_msgs
-  cv_bridge  
-  OpenCV     
-)
+set(dependencies "rclcpp" "geometry_msgs" "nav2_msgs" "tf2" "tf2_ros" "tf2_geometry_msgs" "example_interfaces" "std_msgs" "std_srvs")
 
-add_executable(waypoints_action_client src/waypoints_action_client.cpp)
-ament_target_dependencies(waypoints_action_client 
-  rclcpp 
-  geometry_msgs 
-  std_srvs  
-  tf2 
-  tf2_geometry_msgs
-  tf2_ros
-  nav2_msgs
-)
+ament_export_dependencies(rosidl_default_runtime)
 
-# Install the executables
+rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
+
+# Node executables
+add_executable(waypoints_service_server src/waypoints_service_server.cpp)
+ament_target_dependencies(waypoints_service_server rclcpp geometry_msgs tf2 tf2_ros tf2_geometry_msgs rosidl_default_runtime ${dependencies})
+target_link_libraries(waypoints_service_server "${cpp_typesupport_target}")
+
+add_executable(waypoints_follower_client src/waypoints_follower_client.cpp)
+ament_target_dependencies(waypoints_follower_client rclcpp geometry_msgs nav2_msgs tf2 tf2_ros tf2_geometry_msgs rosidl_default_runtime ${dependencies})
+target_link_libraries(waypoints_follower_client "${cpp_typesupport_target}")
+
+add_executable(current_position_publisher src/current_position_publisher.cpp)
+ament_target_dependencies(current_position_publisher rclcpp geometry_msgs tf2 tf2_ros tf2_geometry_msgs rosidl_default_runtime ${dependencies})
+target_link_libraries(current_position_publisher "${cpp_typesupport_target}")
+
+add_executable(target_position_subscriber src/target_position_subscriber.cpp)
+ament_target_dependencies(target_position_subscriber rclcpp geometry_msgs tf2 tf2_ros tf2_geometry_msgs rosidl_default_runtime ${dependencies})
+target_link_libraries(target_position_subscriber "${cpp_typesupport_target}")
+
+# Install executables
 install(TARGETS
-  waypoints_navigation_node
-  main_control_node
-  waypoints_action_client
-  DESTINATION lib/${PROJECT_NAME}
-)
+  waypoints_service_server
+  waypoints_follower_client
+  current_position_publisher
+  target_position_subscriber
+  DESTINATION lib/${PROJECT_NAME})
 
-# Install Python scripts if any
-install(
-  PROGRAMS
-  # Add Python scripts here if necessary
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-# Install launch files
-install(DIRECTORY launch/
-  DESTINATION share/${PROJECT_NAME}/
-)
-
-# Set up for testing
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
-endif()
+# Install service files
+install(DIRECTORY srv/
+DESTINATION share/${PROJECT_NAME}/srv)
 
 ament_package()
