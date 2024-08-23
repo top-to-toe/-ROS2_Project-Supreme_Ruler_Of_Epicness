@@ -1,14 +1,14 @@
 /*
-    target_position_subscriber.cpp(Target Position Subscriber)
-    역할: 이 노드는 "target_position" 토픽을 구독하여 로봇이 도달해야 할 목표 위치를 수신합니다.수신된 위치는 geometry_msgs::msg::PoseStamped 메시지로 표현되며, 이 노드는 메시지의 내용을 콘솔에 출력합니다.
-    동작에 필요한 이유: 이 노드는 목표 위치를 수신하여 로봇의 목표 위치를 기록하거나 처리하는 데 필요합니다.다른 노드들이 로봇의 목표 위치를 인식하고 해당 위치로의 경로를 계산하는 데 사용될 수 있습니다.
+    target_position_subscriber.cpp (Target Position Subscriber)
+    역할: 이 노드는 "target_position" 토픽을 구독하여 로봇이 도달해야 할 목표 위치를 수신합니다. 수신된 위치는 geometry_msgs::msg::PoseStamped 메시지로 표현되며, 이 노드는 메시지의 내용을 콘솔에 출력합니다.
+    동작에 필요한 이유: 이 노드는 목표 위치를 수신하여 로봇의 목표 위치를 기록하거나 처리하는 데 필요합니다. 다른 노드들이 로봇의 목표 위치를 인식하고 해당 위치로의 경로를 계산하는 데 사용될 수 있습니다.
     사용 시나리오: 이 노드는 목표 위치를 구독하여 특정 동작을 수행하는 경우에 사용됩니다. 목표 위치로 이동하거나 목표 위치 정보를 기반으로 로봇을 제어해야 할 때 필요합니다.
     실행 필요성: 목표 위치 정보를 받아서 이를 처리해야 하는 경우 실행합니다. 이 노드가 없으면 목표 위치 정보를 받을 수 없습니다.
 */
 
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "tf2/LinearMath/Quaternion.h"
+#include "rclcpp/rclcpp.hpp"                       // ROS2 기본 기능을 위한 헤더 파일
+#include "geometry_msgs/msg/pose_stamped.hpp"      // PoseStamped 메시지 사용을 위한 헤더 파일
+#include "tf2/LinearMath/Quaternion.h"             // 쿼터니언(회전) 연산을 위한 헤더 파일
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" // tf2::getYaw 함수 사용을 위한 헤더 파일
 
 // 타겟 위치를 구독하여 처리하는 노드

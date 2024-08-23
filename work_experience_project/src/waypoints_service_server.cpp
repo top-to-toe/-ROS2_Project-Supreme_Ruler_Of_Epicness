@@ -6,14 +6,14 @@
     실행 필요성: 경로 점을 설정하는 데 필요합니다. 이 노드가 실행되지 않으면, 클라이언트는 경로 점을 설정할 수 없습니다.
 */
 
-#include "rclcpp/rclcpp.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "rclcpp/rclcpp.hpp"                                // ROS2 기본 기능을 위한 헤더 파일
+#include "geometry_msgs/msg/pose_stamped.hpp"               // PoseStamped 메시지 사용을 위한 헤더 파일
 #include "work_experience_project/srv/waypoint_service.hpp" // WaypointService 서비스 타입을 사용하기 위한 헤더 파일
-#include "tf2/LinearMath/Quaternion.h"
-#include <memory>
-#include <vector>
+#include "tf2/LinearMath/Quaternion.h"                      // 쿼터니언(회전) 연산을 위한 헤더 파일
+#include <memory>                                           // 스마트 포인터 사용을 위한 헤더 파일
+#include <vector>                                           // 벡터 컨테이너 사용을 위한 헤더 파일
 
-// 경로점을 설정하는 서비스 서버 노드
+// WaypointsService 클래스: 경로점을 설정하는 서비스 서버 노드
 class WaypointsService : public rclcpp::Node
 {
 public:
@@ -22,12 +22,19 @@ public:
     {
         // 서비스 서버 초기화: "send_waypoint" 서비스 요청을 처리
         service_ = this->create_service<work_experience_project::srv::WaypointService>(
-            "send_waypoint",
-            std::bind(&WaypointsService::handle_waypoint_request, this, std::placeholders::_1, std::placeholders::_2));
+            "send_waypoint",                                                                                          // 서비스 이름 설정
+            std::bind(&WaypointsService::handle_waypoint_request, this, std::placeholders::_1, std::placeholders::_2) // 요청 처리 콜백 함수 바인딩
+        );
     }
 
 private:
-    // 서비스 요청을 처리하는 함수
+    /*
+        handle_waypoint_request 함수:
+        - 역할: 클라이언트로부터의 경로점 설정 요청을 처리합니다. x, y, theta 배열을 받아서 내부적으로 경로점을 저장합니다.
+        - 매개변수:
+            - request: 클라이언트로부터 받은 요청 메시지, x, y, theta 배열을 포함합니다.
+            - response: 서비스 응답 메시지, 성공 여부와 메시지를 포함합니다.
+    */
     void handle_waypoint_request(
         const std::shared_ptr<work_experience_project::srv::WaypointService::Request> request,
         std::shared_ptr<work_experience_project::srv::WaypointService::Response> response)
@@ -41,19 +48,27 @@ private:
             {
                 waypoints_.emplace_back(get_pose_from_xy_theta(request->x[i], request->y[i], request->theta[i]));
             }
-            response->success = true;
-            response->message = "Waypoints set successfully."; // 성공 메시지
-            RCLCPP_INFO(this->get_logger(), "Received %zu waypoints.", request->x.size());
+            response->success = true;                                                      // 경로점 설정 성공
+            response->message = "Waypoints set successfully.";                             // 성공 메시지 반환
+            RCLCPP_INFO(this->get_logger(), "Received %zu waypoints.", request->x.size()); // 수신된 경로점 수를 로그로 출력
         }
         else
         {
-            response->success = false;
-            response->message = "Array sizes for x, y, theta do not match."; // 실패 메시지
-            RCLCPP_ERROR(this->get_logger(), "Mismatched array sizes for x, y, theta.");
+            response->success = false;                                                   // 경로점 설정 실패
+            response->message = "Array sizes for x, y, theta do not match.";             // 실패 메시지 반환
+            RCLCPP_ERROR(this->get_logger(), "Mismatched array sizes for x, y, theta."); // 배열 크기 불일치 오류 로그 출력
         }
     }
 
-    // x, y, theta를 기반으로 PoseStamped 메시지를 생성하는 함수
+    /*
+        get_pose_from_xy_theta 함수:
+        - 역할: x, y 좌표와 회전각(theta)을 받아서 PoseStamped 메시지로 변환합니다.
+        - 매개변수:
+            - x: 경로점의 x 좌표
+            - y: 경로점의 y 좌표
+            - theta: 경로점의 회전각 (라디안)
+        - 반환값: 생성된 PoseStamped 메시지
+    */
     geometry_msgs::msg::PoseStamped get_pose_from_xy_theta(const float &x, const float &y, const float &theta)
     {
         auto pose = geometry_msgs::msg::PoseStamped(); // PoseStamped 메시지 생성
@@ -64,7 +79,7 @@ private:
         pose.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now(); // 현재 시간을 타임스탬프로 설정
         pose.pose.position.x = x;                              // x 좌표 설정
         pose.pose.position.y = y;                              // y 좌표 설정
-        pose.pose.position.z = 0.0;                            // z 좌표는 0으로 설정
+        pose.pose.position.z = 0.0;                            // z 좌표는 0으로 설정 (2D 환경 가정)
         pose.pose.orientation.x = q.x();                       // 쿼터니언의 x값 설정
         pose.pose.orientation.y = q.y();                       // 쿼터니언의 y값 설정
         pose.pose.orientation.z = q.z();                       // 쿼터니언의 z값 설정
@@ -72,9 +87,9 @@ private:
         return pose;                                           // 생성된 PoseStamped 메시지 반환
     }
 
-    // 경로점을 저장하는 벡터와 서비스 서버 선언
-    std::vector<geometry_msgs::msg::PoseStamped> waypoints_;
-    rclcpp::Service<work_experience_project::srv::WaypointService>::SharedPtr service_;
+    // 멤버 변수 선언
+    std::vector<geometry_msgs::msg::PoseStamped> waypoints_;                            // 경로점을 저장하는 벡터
+    rclcpp::Service<work_experience_project::srv::WaypointService>::SharedPtr service_; // 서비스 서버
 };
 
 int main(int argc, char *argv[])
@@ -83,7 +98,7 @@ int main(int argc, char *argv[])
     rclcpp::init(argc, argv);
     // WaypointsService 노드 실행
     auto node = std::make_shared<WaypointsService>(rclcpp::NodeOptions());
-    rclcpp::spin(node);
+    rclcpp::spin(node); // 노드 실행 및 서비스 요청 대기
     // ROS2 시스템 종료
     rclcpp::shutdown();
     return 0;
