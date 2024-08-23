@@ -8,9 +8,11 @@
   <license>Apache-2.0</license> <!-- 라이선스를 명시적으로 추가했습니다. -->
 
   <!-- 의존성 선언 -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
 
   <!-- 테스트 의존성 -->
   <test_depend>ament_copyright</test_depend>
