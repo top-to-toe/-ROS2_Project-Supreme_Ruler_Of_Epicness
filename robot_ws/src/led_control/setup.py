@@ -23,8 +23,6 @@ setup(
         'console_scripts': [
             'led_service_server = led_control.led_service_server:main',  # LED 제어 서비스 서버
             'led_service_client = led_control.led_service_client:main',  # LED 제어 서비스 클라이언트
-            'emergency_stop_service_server = led_control.emergency_stop_service_server:main',  # 비상정지 서비스 서버
-            'emergency_stop_service_client = led_control.emergency_stop_service_client:main',  # 비상정지 서비스 클라이언트
         ],
     },
 )
