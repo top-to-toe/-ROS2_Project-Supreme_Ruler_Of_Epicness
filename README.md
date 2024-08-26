@@ -1,3 +1,6 @@
+***
+Project PPT (Korean) : https://docs.google.com/presentation/d/15dRQ7wJP1Kmlb246YAnMK45fRt6uJuvAc0TwIZO6qb0/edit#slide=id.p
+***
 
 # ROS 2 Navigation2 프로젝트 진행 내용 (2024-08-20)
 
@@ -70,3 +73,5 @@ cd ~/ros2_ws/src
 git clone <repository-url>
 cd ..
 colcon build
+
+***
